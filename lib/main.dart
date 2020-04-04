@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'login.dart';
+import 'package:login/src/bluetooth/bluetooth_status.dart';
 
 void main() => runApp(SismicLogin());
 
@@ -14,7 +13,7 @@ class SismicLogin extends StatelessWidget {
         fontFamily: "Quebec Black",
         primaryColor: Colors.black,
       ),
-      home: Login(),
+      home: BluetoothStatus(),
     );
   }
 }
