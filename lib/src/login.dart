@@ -16,6 +16,7 @@ class _LoginState extends State<Login> {
   final String CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
   final String TARGET_DEVICE_NAME = "ESP32 GET NOTI FROM DEVICE";
   bool _showPassword = true;
+  bool _remenberPassword = true;
   String pswd = '';
   Stream<List<int>> stream;
   bool isReady;
@@ -132,6 +133,7 @@ class _LoginState extends State<Login> {
                   child: Text('No')),
               FlatButton(
                 onPressed: () {
+                  !_remenberPassword ? writeData("Wrong") : false;
                   disconnectFromDevice();
                   Navigator.of(context).pop(true);
                 },
@@ -151,101 +153,6 @@ class _LoginState extends State<Login> {
     String stringData = utf8.decode(dataFromDevice);
     return stringData.split('|').map((e) => num.parse(e)).toList();
   }
-
-  // FlutterBlue flutterBlue = FlutterBlue.instance;
-  // StreamSubscription<ScanResult> scanSubScription;
-
-  // BluetoothDevice targetDevice;
-  // BluetoothCharacteristic targetCharacteristic;
-
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   startScan();
-  // }
-
-  // startScan() {
-  //   setState(() {
-  //     connectionText = "Start Scanning";
-  //   });
-
-  //   scanSubScription = flutterBlue.scan().listen((scanResult) {
-  //     if (scanResult.device.name == TARGET_DEVICE_NAME) {
-  //       print('DEVICE found');
-  //       stopScan();
-  //       setState(() {
-  //         connectionText = "Found Target Device";
-  //       });
-
-  //       targetDevice = scanResult.device;
-  //       connectToDevice();
-  //     }
-  //   }, onDone: () => stopScan());
-  // }
-
-  // stopScan() {
-  //   scanSubScription?.cancel();
-  //   scanSubScription = null;
-  // }
-
-  // connectToDevice() async {
-  //   if (targetDevice == null) return;
-
-  //   setState(() {
-  //     connectionText = "Device Connecting";
-  //   });
-
-  //   await targetDevice.connect();
-  //   print('DEVICE CONNECTED');
-  //   setState(() {
-  //     connectionText = "Device Connected";
-  //   });
-
-  //   discoverServices();
-  // }
-
-  // disconnectFromDevice() {
-  //   if (targetDevice == null) return;
-
-  //   targetDevice.disconnect();
-
-  //   setState(() {
-  //     connectionText = "Device Disconnected";
-  //   });
-  // }
-
-  // discoverServices() async {
-  //   if (targetDevice == null) return;
-
-  //   List<BluetoothService> services = await targetDevice.discoverServices();
-  //   services.forEach((service) {
-  //     // do something with service
-  //     if (service.uuid.toString() == SERVICE_UUID) {
-  //       service.characteristics.forEach((characteristic) {
-  //         if (characteristic.uuid.toString() == CHARACTERISTIC_UUID) {
-  //           targetCharacteristic = characteristic;
-  //           // writeData("Hi there, ESP32!!");
-  //           setState(() {
-  //             connectionText = "All Ready with ${targetDevice.name}";
-  //           });
-  //         }
-  //       });
-  //     }
-  //   });
-  //   List<BluetoothService> servicesReceiving =
-  //       await targetDevice.discoverServices();
-  //   servicesReceiving.forEach((service) {
-  //     // do something with service
-  //     if (service.uuid.toString() == SERVICE_UUID) {
-  //       service.characteristics.forEach((characteristic) {
-  //         if (characteristic.uuid.toString() == CHARACTERISTIC_UUID) {
-  //           characteristic.setNotifyValue(!characteristic.isNotifying);
-  //           stream = characteristic.value;
-  //         }
-  //       });
-  //     }
-  //   });
-  // }
 
   writeData(String data) {
     if (targetCharacteristic == null) return;
@@ -302,39 +209,6 @@ class _LoginState extends State<Login> {
         ),
       );
 
-  // Future<bool> _onWillPop() {
-  //   return showDialog(
-  //     context: context,
-  //     builder: (context) =>
-  //         AlertDialog(
-  //           title: Text('Are you sure?'),
-  //           content: Container(
-  //             width: 500,
-  //             height: 200,
-  //             child: Text('Do you want to disconnect device and go back?'),
-  //           ),
-  //           actions: <Widget>[
-  //             FlatButton(
-  //                 onPressed: () => Navigator.of(context).pop(false),
-  //                 child: Text('No')),
-  //             FlatButton(
-  //               onPressed: () {
-  //                 disconnectFromDevice();
-  //                 Navigator.of(context).pop(true);
-  //               },
-  //               child: Text('Yes'),
-  //             ),
-  //           ],
-  //         ) ??
-  //         false,
-  //   );
-  // }
-
-  // List<num> _listParser(List<int> dataFromDevice) {
-  //   String stringData = utf8.decode(dataFromDevice);
-  //   return stringData.split('|').map((e) => num.parse(e)).toList();
-  // }
-
   @override
   Widget build(BuildContext context) {
     Size screen = MediaQuery.of(context).size;
@@ -348,8 +222,8 @@ class _LoginState extends State<Login> {
               Center(
                 child: Image.asset(
                   "assets/images/SBAGUIA.png",
-                  width: screen.width / 2,
-                  height: screen.width / 2,
+                  width: screen.width / 3,
+                  height: screen.width / 3,
                 ),
               ),
               pswdFormField(
@@ -360,44 +234,50 @@ class _LoginState extends State<Login> {
                 onPressed: () => writeData(pswd),
                 child: Text("Enter"),
               ),
+              Text(
+                "Remember password",
+              ),
+              Checkbox(
+                value: _remenberPassword,
+                onChanged: (value) {
+                  setState(() {
+                    _remenberPassword = value;
+                  });
+                },
+              ),
               Container(
                 child: StreamBuilder<List<int>>(
                   stream: stream,
-                  initialData: [],
+                  initialData: [0],
                   builder: (c, AsyncSnapshot<List<int>> snapshot) {
                     if (snapshot.hasError) {
                       return Text('Error: ${snapshot.error}');
                     }
-                    if (snapshot.data.isEmpty == false) {
-                      switch (snapshot.connectionState) {
-                        case ConnectionState.active:
-                          List<num> arrData = _listParser(snapshot.data);
-                          return Column(
-                            children: <Widget>[
-                              Center(
-                                child: arrData.length == 1
-                                    ? Text("Wrong password")
-                                    : Text("$arrData"),
-                              ),
-                            ],
-                          );
-                          break;
-                        case ConnectionState.none:
-                          return Container(
-                            child: Center(
-                              child: Text("${snapshot.connectionState}"),
+                    switch (snapshot.connectionState) {
+                      case ConnectionState.active:
+                        List<num> arrData = _listParser(snapshot.data);
+                        print("Values: $arrData");
+                        return Column(
+                          children: <Widget>[
+                            Center(
+                              child: arrData.length == 1
+                                  ? Text("Wrong password")
+                                  : Text("$arrData"),
                             ),
-                          );
-                          break;
-                        default:
-                          return Center(
+                          ],
+                        );
+                        break;
+                      case ConnectionState.none:
+                        return Container(
+                          child: Center(
                             child: Text("${snapshot.connectionState}"),
-                          );
-                      }
-                    } else {
-                      return Center(
-                        child: Text("${snapshot.connectionState}"),
-                      );
+                          ),
+                        );
+                        break;
+                      default:
+                        return Center(
+                          child: Text("${snapshot.connectionState}"),
+                        );
                     }
                   },
                 ),
