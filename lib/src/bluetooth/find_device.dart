@@ -1,8 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
+import '../login/new_login.dart';
 
 import '../login.dart';
+import '../stream_first_test.dart';
 import 'bluetooth_widgets.dart';
 
 class FindDevicesScreen extends StatelessWidget {
@@ -34,7 +36,9 @@ class FindDevicesScreen extends StatelessWidget {
                             MaterialPageRoute(
                               builder: (context) {
                                 r.device.connect();
-                                return Login(device: r.device);
+                                // return StreamFirst(device: r.device);
+                                // return Login(device: r.device);
+                                return NewLogin(device: r.device);
                               },
                             ),
                           ),

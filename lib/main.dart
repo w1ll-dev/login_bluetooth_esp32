@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:login/src/bluetooth/bluetooth_status.dart';
 
-void main() => runApp(SismicLogin());
+import 'src/controller/pswd_form_controller.dart';
+
+void main() {
+  GetIt getIt = GetIt.I;
+  getIt.registerSingleton<PswdFormController>(PswdFormController());
+  runApp(SismicLogin());
+}
 
 class SismicLogin extends StatelessWidget {
   @override
@@ -11,7 +18,7 @@ class SismicLogin extends StatelessWidget {
       title: 'SismicLogin',
       theme: ThemeData(
         fontFamily: "Quebec Black",
-        primaryColor: Colors.black,
+        primaryColor: Colors.white,
       ),
       home: BluetoothStatus(),
     );

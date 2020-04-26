@@ -3,6 +3,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
+import 'package:login/src/data_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+String pswdSaved = "Pswd Saved";
 
 class Login extends StatefulWidget {
   final BluetoothDevice device;
@@ -11,21 +15,75 @@ class Login extends StatefulWidget {
   _LoginState createState() => _LoginState();
 }
 
-class _LoginState extends State<Login> {
+class _LoginState extends State<Login> with TickerProviderStateMixin {
   final String SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
   final String CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-  final String TARGET_DEVICE_NAME = "ESP32 GET NOTI FROM DEVICE";
   bool _showPassword = true;
   bool _remenberPassword = true;
-  String pswd = '';
   Stream<List<int>> stream;
   bool isReady;
   BluetoothCharacteristic targetCharacteristic;
-  String connectionText = "";
+  String pswd = '';
+  List listToVerify = [];
+
+  AnimationController _ripleController;
+  AnimationController _scaleController;
+
+  Animation<double> _ripleAnimation;
+  Animation<double> _scaleAnimation;
+
+  bool okPswd = false;
+  bool hideIcon = false;
+  Color buttonColor = Colors.blue;
+
+  List<int> showData = [];
+
+  addPswd() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString("pswd", pswdSaved);
+  }
+
+  getPswd() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    pswdSaved = prefs.getString('pswd') ?? "";
+  }
 
   @override
   void initState() {
     super.initState();
+    _ripleController = AnimationController(
+      duration: Duration(seconds: 2),
+      vsync: this,
+    );
+
+    _scaleController = AnimationController(
+      duration: Duration(seconds: 2),
+      vsync: this,
+    );
+
+    _ripleAnimation =
+        Tween<double>(begin: 80.0, end: 90.0).animate(_ripleController);
+
+    _scaleAnimation =
+        Tween<double>(begin: 1.0, end: 30.0).animate(_scaleController)
+          ..addStatusListener((status) {
+            if (status == AnimationStatus.completed) {
+              disconnectFromDevice();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) {
+                    return DataScreen(
+                      stream: stream,
+                    );
+                  },
+                ),
+              );
+            }
+          });
+
+    _ripleController.forward();
+
     isReady = false;
     connectToDevice();
   }
@@ -93,14 +151,8 @@ class _LoginState extends State<Login> {
             (characteristic) {
               if (characteristic.uuid.toString() == CHARACTERISTIC_UUID) {
                 characteristic.setNotifyValue(!characteristic.isNotifying);
-                stream = characteristic.value;
-                if (mounted) {
-                  setState(
-                    () {
-                      isReady = true;
-                    },
-                  );
-                }
+                stream = characteristic.value.asBroadcastStream();
+                if (mounted) isReady = true;
               }
             },
           );
@@ -161,131 +213,136 @@ class _LoginState extends State<Login> {
     targetCharacteristic.write(bytes, withoutResponse: false);
   }
 
-  Widget textField({
-    double width,
-    double height,
-    String label,
-  }) =>
-      Container(
-        width: width,
-        height: height,
-        child: TextFormField(
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: "Insert username",
-            labelText: label,
+  Widget pswdFormField() => TextFormField(
+        onChanged: (pswdWrited) => pswd = pswdWrited,
+        autofocus: true,
+        decoration: InputDecoration(
+          hintText: "Insert passord",
+          labelText: "Password",
+          suffixIcon: GestureDetector(
+            onTap: () {
+              setState(() {
+                _showPassword = !_showPassword;
+              });
+            },
+            child: Container(
+              child: Icon(
+                _showPassword ? Icons.visibility : Icons.visibility_off,
+              ),
+            ),
           ),
         ),
+        obscureText: !_showPassword,
+        validator: (String name) => "Insert password",
       );
 
-  Widget pswdFormField({
-    double width,
-    double height,
-  }) =>
-      Container(
-        width: width,
-        height: height,
-        child: TextFormField(
-          onChanged: (pswdWrited) => pswd = pswdWrited,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: "Insert passord",
-            labelText: "Password",
-            suffixIcon: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _showPassword = !_showPassword;
-                });
-              },
-              child: Container(
-                child: Icon(
-                  _showPassword ? Icons.visibility : Icons.visibility_off,
+  animateLogin() {
+    Size screen = MediaQuery.of(context).size;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Text("PSWD SAVED: $pswdSaved"),
+          Center(
+            child: Image.asset(
+              "assets/images/SBAGUIA.png",
+              width: screen.width / 3,
+              height: screen.width / 3,
+            ),
+          ),
+          pswdFormField(),
+          Center(
+            child: AnimatedBuilder(
+              animation: _ripleController,
+              builder: (context, child) => Container(
+                width: _ripleAnimation.value,
+                height: _ripleAnimation.value,
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black.withOpacity(0.5),
+                  ),
+                  child: InkWell(
+                    onTap: () {
+                      pswdSaved = pswd;
+                      verifyPswd(pswd: pswd).then((onValue) {
+                        List responseList = _listParser(onValue);
+                        print("$responseList");
+                        if (responseList.length == 5) {
+                          addPswd();
+                          hideIcon = true;
+                          _scaleController.forward();
+                        }
+                      });
+                    },
+                    child: AnimatedBuilder(
+                      animation: _scaleAnimation,
+                      builder: (context, child) => Transform.scale(
+                        scale: _scaleAnimation.value,
+                        child: Container(
+                          child: Icon(
+                            hideIcon ? null : Icons.keyboard_arrow_right,
+                            size: 60,
+                            color: Colors.white,
+                          ),
+                          margin: EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: buttonColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-          obscureText: !_showPassword,
-          validator: (String name) => "Insert password",
-        ),
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    Size screen = MediaQuery.of(context).size;
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Center(
-                child: Image.asset(
-                  "assets/images/SBAGUIA.png",
-                  width: screen.width / 3,
-                  height: screen.width / 3,
-                ),
-              ),
-              pswdFormField(
-                width: screen.width / 1.5,
-                height: screen.height / 8,
-              ),
-              FlatButton(
-                onPressed: () => writeData(pswd),
-                child: Text("Enter"),
-              ),
-              Text(
-                "Remember password",
-              ),
-              Checkbox(
-                value: _remenberPassword,
-                onChanged: (value) {
-                  setState(() {
-                    _remenberPassword = value;
-                  });
-                },
-              ),
-              Container(
-                child: StreamBuilder<List<int>>(
-                  stream: stream,
-                  initialData: [0],
-                  builder: (c, AsyncSnapshot<List<int>> snapshot) {
-                    if (snapshot.hasError) {
-                      return Text('Error: ${snapshot.error}');
-                    }
-                    switch (snapshot.connectionState) {
-                      case ConnectionState.active:
-                        List<num> arrData = _listParser(snapshot.data);
-                        print("Values: $arrData");
-                        return Column(
-                          children: <Widget>[
-                            Center(
-                              child: arrData.length == 1
-                                  ? Text("Wrong password")
-                                  : Text("$arrData"),
-                            ),
-                          ],
-                        );
-                        break;
-                      case ConnectionState.none:
-                        return Container(
-                          child: Center(
-                            child: Text("${snapshot.connectionState}"),
-                          ),
-                        );
-                        break;
-                      default:
-                        return Center(
-                          child: Text("${snapshot.connectionState}"),
-                        );
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
+
+  @override
+  Widget verify(BuildContext context) {
+    return pswdSaved.isEmpty
+        ? animateLogin()
+        : DataScreen(
+            stream: stream,
+          );
+  }
+
+  verifyPswd({String pswd}) async {
+    writeData(pswd);
+    first() async {
+      Future.delayed(Duration(seconds: 1));
+      return await stream.first;
+    }
+
+    return first().then((value) {
+      setState(() {
+        listToVerify = value;
+      });
+      return value;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => WillPopScope(
+        onWillPop: _onWillPop,
+        child: Scaffold(
+          body: !isReady
+              ? Center(
+                  child: Text("SISMIC"),
+                )
+              : FutureBuilder(
+                  future: getPswd(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return verify(context);
+                    }
+                    return CircularProgressIndicator();
+                  }),
+        ),
+      );
 }
